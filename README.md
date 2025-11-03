@@ -4,16 +4,7 @@ Frontend: https://878615ad.trip-weather-planner.pages.dev
 
 Backend (API): https://cf-ai-weathering-for-you.haozeliu.workers.dev
 
-## 🖼 Screenshots
 
-**Landing Page**  
-![Landing Page](./Screenshot%202025-11-03%20143248.png)
-
-**Weather Forecast View**  
-![Forecast View](./Screenshot%202025-11-03%20143436.png)
-
-**Packing List (AI Generated)**  
-![Packing List](./Screenshot%202025-11-03%20143446.png)
 
 ✨ Overview
 
@@ -26,6 +17,17 @@ AI-generated summaries
 Smart packing lists
 
 It’s built entirely on Cloudflare Workers AI (Llama 3.3) and Open-Meteo APIs, deployed using Cloudflare Pages + Workers
+
+## 🖼 Screenshots
+
+**Landing Page**  
+![Landing Page](./Screenshot%202025-11-03%20143248.png)
+
+**Weather Forecast View**  
+![Forecast View](./Screenshot%202025-11-03%20143436.png)
+
+**Packing List (AI Generated)**  
+![Packing List](./Screenshot%202025-11-03%20143446.png)
 
 ⚡ Workflow
 
