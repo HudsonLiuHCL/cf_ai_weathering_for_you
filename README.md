@@ -4,6 +4,17 @@ Frontend: https://878615ad.trip-weather-planner.pages.dev
 
 Backend (API): https://cf-ai-weathering-for-you.haozeliu.workers.dev
 
+## 🖼 Screenshots
+
+**Landing Page**  
+![Landing Page](./Screenshot%202025-11-03%20143248.png)
+
+**Weather Forecast View**  
+![Forecast View](./Screenshot%202025-11-03%20143436.png)
+
+**Packing List (AI Generated)**  
+![Packing List](./Screenshot%202025-11-03%20143446.png)
+
 ✨ Overview
 
 Trip Weather Planner is an AI-powered web app that helps travelers plan their trips with:
@@ -82,16 +93,7 @@ Response:
   ]
 }
 
-## 🖼 Screenshots
 
-**Landing Page**  
-![Landing Page](./Screenshot%202025-11-03%20143248.png)
-
-**Weather Forecast View**  
-![Forecast View](./Screenshot%202025-11-03%20143436.png)
-
-**Packing List (AI Generated)**  
-![Packing List](./Screenshot%202025-11-03%20143446.png)
 
 
 🧾 Tech Stack
