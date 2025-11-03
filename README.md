@@ -14,32 +14,25 @@ AI-generated summaries
 
 Smart packing lists
 
-It’s built entirely on Cloudflare Workers AI (Llama 3.3) and Open-Meteo APIs, deployed using Cloudflare Pages + Workers.
+It’s built entirely on Cloudflare Workers AI (Llama 3.3) and Open-Meteo APIs, deployed using Cloudflare Pages + Workers
 
-🧠 Features
-Feature	Description
-🤖 AI Integration	Uses @cf/meta/llama-3.3-70b-instruct to summarize forecasts & suggest packing items
-🌤 Real Weather Data	Fetches daily forecasts from Open-Meteo
-🧳 Smart Packing	AI adapts suggestions to temperature, wind, rain, or snow
-🗺 Geocoding	Supports city names or ZIP codes (via Open-Meteo Geocoding API)
-⚙️ Edge Deployment	Runs globally on Cloudflare’s network with instant scaling
 ⚡ Workflow
 
 User Input (Frontend)
-The user enters a location and trip length (1–10 days).
+The user enters a location and trip length (1–10 days) on the web app.
 
-Backend (Worker)
+Backend (Cloudflare Worker)
 
-Geocodes the location
+Converts the location into latitude and longitude via the Open-Meteo Geocoding API
 
-Fetches a multi-day forecast
+Retrieves a multi-day weather forecast
 
-Sends a formatted prompt to Cloudflare Workers AI
+Sends a structured prompt to Cloudflare Workers AI (Llama 3.3)
 
-Returns an AI summary + packing list (with fallback logic if AI fails)
+Receives and returns an AI-generated trip summary and packing list, with rule-based fallback if AI fails
 
 AI Response (Frontend)
-Displays a weather overview, daily cards, and an interactive packing list.
+Displays the weather summary, daily forecast cards, and an interactive packing checklist.
 
 🚀 Deployment
 Prerequisites
@@ -52,11 +45,13 @@ Node 18+
 
 Steps
 # Clone
-git clone https://github.com/yourname/cf_ai_weathering_for_you
+git clone https://github.com/HudsonLiuHCL/cf_ai_weathering_for_you.git
+
 cd cf_ai_weathering_for_you
 
 # Login
 wrangler login
+
 wrangler ai enable
 
 # Deploy backend Worker
@@ -87,15 +82,16 @@ Response:
   ]
 }
 
-🖼 Screenshots
+## 🖼 Screenshots
 
-Landing Page
+**Landing Page**  
+![Landing Page](./Screenshot%202025-11-03%20143248.png)
 
+**Weather Forecast View**  
+![Forecast View](./Screenshot%202025-11-03%20143436.png)
 
-Weather Forecast View
-
-
-Packing List (AI-Generated)
+**Packing List (AI Generated)**  
+![Packing List](./Screenshot%202025-11-03%20143446.png)
 
 
 🧾 Tech Stack
