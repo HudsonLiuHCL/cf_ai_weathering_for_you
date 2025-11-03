@@ -18,19 +18,28 @@ export default {
     // Health check endpoint
     if (url.pathname === '/' && request.method === 'GET') {
       return new Response(
-        JSON.stringify({ status: 'ok', message: 'Weather AI Worker is running' }),
+        JSON.stringify({ status: 'ok', message: 'Trip Weather Planner is running' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Main weather endpoint
-    if (url.pathname === '/weather' && request.method === 'POST') {
+    // Main trip weather endpoint
+    if (url.pathname === '/trip-weather' && request.method === 'POST') {
       try {
-        const { location } = await request.json();
+        const { location, days } = await request.json();
 
         if (!location || location.trim() === '') {
           return new Response(
             JSON.stringify({ error: 'Location is required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Validate days (1-10)
+        const numDays = parseInt(days) || 1;
+        if (numDays < 1 || numDays > 10) {
+          return new Response(
+            JSON.stringify({ error: 'Days must be between 1 and 10' }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -44,24 +53,29 @@ export default {
           );
         }
 
-        // Step 2: Fetch weather data
-        const weatherData = await fetchWeather(geoData.latitude, geoData.longitude);
-        if (!weatherData) {
+        // Step 2: Fetch multi-day weather forecast
+        const weatherForecast = await fetchMultiDayWeather(geoData.latitude, geoData.longitude, numDays);
+        if (!weatherForecast) {
           return new Response(
-            JSON.stringify({ error: 'Failed to fetch weather data' }),
+            JSON.stringify({ error: 'Failed to fetch weather forecast' }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
 
-        // Step 3: Generate AI response
-        const aiResponse = await generateWeatherReport(
+        // Step 3: Generate AI trip planning response
+        const aiResponse = await generateTripPlan(
           env,
           geoData.name,
-          weatherData
+          weatherForecast,
+          numDays
         );
 
         return new Response(
-          JSON.stringify(aiResponse),
+          JSON.stringify({
+            location: geoData.name,
+            days: numDays,
+            ...aiResponse
+          }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       } catch (error) {
@@ -102,21 +116,29 @@ async function geocodeLocation(location) {
 }
 
 /**
- * Fetch current weather from Open-Meteo Weather API
+ * Fetch multi-day weather forecast from Open-Meteo Weather API
  */
-async function fetchWeather(lat, lon) {
-  const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,windspeed_10m,weathercode&temperature_unit=fahrenheit&windspeed_unit=mph&timezone=auto`;
+async function fetchMultiDayWeather(lat, lon, days) {
+  const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode,windspeed_10m_max&temperature_unit=fahrenheit&windspeed_unit=mph&timezone=auto&forecast_days=${days}`;
   
   try {
     const response = await fetch(weatherUrl);
     const data = await response.json();
 
-    if (data.current) {
-      return {
-        temperature: data.current.temperature_2m,
-        windspeed: data.current.windspeed_10m,
-        weathercode: data.current.weathercode,
-      };
+    if (data.daily) {
+      // Transform the data into a more usable format
+      const forecast = [];
+      for (let i = 0; i < days; i++) {
+        forecast.push({
+          date: data.daily.time[i],
+          temp_max: data.daily.temperature_2m_max[i],
+          temp_min: data.daily.temperature_2m_min[i],
+          precipitation: data.daily.precipitation_sum[i],
+          weathercode: data.daily.weathercode[i],
+          windspeed_max: data.daily.windspeed_10m_max[i],
+        });
+      }
+      return forecast;
     }
     return null;
   } catch (error) {
@@ -126,65 +148,149 @@ async function fetchWeather(lat, lon) {
 }
 
 /**
- * Generate weather summary and outfit recommendation using Llama 3.3 via Workers AI
+ * Generate trip plan with packing list using Llama 3.3 via Workers AI
  */
-async function generateWeatherReport(env, locationName, weatherData) {
-  const weatherDescription = getWeatherDescription(weatherData.weathercode);
-  
-  const prompt = `You are a friendly personal weather assistant.
-Given today's weather data, provide a brief summary and suggest an appropriate outfit.
+async function generateTripPlan(env, locationName, weatherForecast, numDays) {
+  // Create a summary of the forecast
+  let forecastSummary = `${numDays}-day forecast for ${locationName}:\n\n`;
+  weatherForecast.forEach((day, index) => {
+    const weatherDesc = getWeatherDescription(day.weathercode);
+    forecastSummary += `Day ${index + 1} (${day.date}): ${weatherDesc}, High ${day.temp_max}°F, Low ${day.temp_min}°F, Wind ${day.windspeed_max} mph, Precipitation ${day.precipitation} mm\n`;
+  });
 
-Location: ${locationName}
-Temperature: ${weatherData.temperature}°F
-Wind Speed: ${weatherData.windspeed} mph
-Weather Condition: ${weatherDescription}
+  const prompt = `You are a helpful travel assistant planning a trip.
 
-Provide your response in exactly this format:
-Summary: [One sentence about the weather]
-Outfit: [One sentence suggesting what to wear]
+${forecastSummary}
 
-Keep it concise and friendly.`;
+Based on this ${numDays}-day weather forecast, provide:
+1. A brief trip weather summary (2-3 sentences)
+2. A comprehensive packing list with essential items
+
+Format your response EXACTLY like this:
+SUMMARY: [Your 2-3 sentence weather summary]
+
+PACKING LIST:
+- [Item 1]
+- [Item 2]
+- [Item 3]
+(continue with all essential items)
+
+Be specific and practical. Include clothing, accessories, and weather-specific items.`;
 
   try {
     const response = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
       messages: [
-        { role: 'system', content: 'You are a helpful weather assistant that provides concise weather summaries and outfit recommendations.' },
+        { role: 'system', content: 'You are a helpful travel and weather planning assistant.' },
         { role: 'user', content: prompt }
       ],
-      max_tokens: 150,
+      max_tokens: 500,
       temperature: 0.7,
     });
 
     // Parse the AI response
     const aiText = response.response || '';
-    const lines = aiText.split('\n').filter(line => line.trim());
     
+    // Extract summary and packing list
     let summary = '';
-    let outfit = '';
+    let packingList = [];
     
-    for (const line of lines) {
-      if (line.toLowerCase().startsWith('summary:')) {
-        summary = line.substring(line.indexOf(':') + 1).trim();
-      } else if (line.toLowerCase().startsWith('outfit:')) {
-        outfit = line.substring(line.indexOf(':') + 1).trim();
-      }
+    const summaryMatch = aiText.match(/SUMMARY:\s*(.+?)(?=PACKING LIST:|$)/is);
+    if (summaryMatch) {
+      summary = summaryMatch[1].trim();
+    }
+    
+    const packingMatch = aiText.match(/PACKING LIST:\s*([\s\S]+)/i);
+    if (packingMatch) {
+      const packingText = packingMatch[1].trim();
+      packingList = packingText
+        .split('\n')
+        .filter(line => line.trim().startsWith('-') || line.trim().match(/^\d+\./))
+        .map(line => line.replace(/^[-\d.]+\s*/, '').trim())
+        .filter(item => item.length > 0);
     }
 
     // Fallback if parsing fails
-    if (!summary || !outfit) {
-      summary = `${weatherDescription} with temperatures around ${weatherData.temperature}°F and winds at ${weatherData.windspeed} mph.`;
-      outfit = getDefaultOutfitSuggestion(weatherData.temperature, weatherData.weathercode);
+    if (!summary || packingList.length === 0) {
+      const fallback = generateFallbackPlan(weatherForecast, numDays);
+      return fallback;
     }
 
-    return { summary, outfit };
+    return {
+      summary,
+      packingList,
+      dailyForecast: weatherForecast.map(day => ({
+        date: day.date,
+        condition: getWeatherDescription(day.weathercode),
+        high: Math.round(day.temp_max),
+        low: Math.round(day.temp_min),
+        precipitation: day.precipitation,
+      }))
+    };
   } catch (error) {
     console.error('AI generation error:', error);
-    // Fallback response
-    return {
-      summary: `${weatherDescription} with temperatures around ${weatherData.temperature}°F and winds at ${weatherData.windspeed} mph.`,
-      outfit: getDefaultOutfitSuggestion(weatherData.temperature, weatherData.weathercode),
-    };
+    return generateFallbackPlan(weatherForecast, numDays);
   }
+}
+
+/**
+ * Generate fallback trip plan if AI fails
+ */
+function generateFallbackPlan(weatherForecast, numDays) {
+  // Analyze the weather patterns
+  const avgHigh = weatherForecast.reduce((sum, d) => sum + d.temp_max, 0) / numDays;
+  const avgLow = weatherForecast.reduce((sum, d) => sum + d.temp_min, 0) / numDays;
+  const totalPrecip = weatherForecast.reduce((sum, d) => sum + d.precipitation, 0);
+  const hasRain = totalPrecip > 5;
+  const hasSnow = weatherForecast.some(d => d.weathercode >= 71 && d.weathercode <= 77);
+  
+  // Generate summary
+  let summary = `Expect temperatures ranging from ${Math.round(avgLow)}°F to ${Math.round(avgHigh)}°F over your ${numDays}-day trip. `;
+  if (hasSnow) {
+    summary += 'Snow is expected, so prepare for winter conditions. ';
+  } else if (hasRain) {
+    summary += 'Rain is likely, so pack accordingly. ';
+  } else {
+    summary += 'Mostly dry conditions expected. ';
+  }
+  summary += 'Check daily forecasts for specific conditions.';
+
+  // Generate packing list
+  const packingList = [];
+  
+  // Clothing based on temperature
+  if (avgHigh > 75) {
+    packingList.push('Lightweight, breathable clothing (t-shirts, shorts)', 'Sunglasses', 'Sunscreen (SPF 30+)', 'Hat or cap for sun protection');
+  } else if (avgHigh > 60) {
+    packingList.push('Light layers (long-sleeve shirts, light jacket)', 'Comfortable pants or jeans', 'Light sweater or cardigan');
+  } else if (avgHigh > 40) {
+    packingList.push('Warm jacket or coat', 'Long pants', 'Sweaters or hoodies', 'Closed-toe shoes');
+  } else {
+    packingList.push('Heavy winter coat', 'Warm layers (thermal underwear)', 'Warm pants', 'Gloves and warm hat', 'Insulated boots');
+  }
+
+  // Weather-specific items
+  if (hasRain) {
+    packingList.push('Rain jacket or waterproof coat', 'Umbrella', 'Waterproof shoes or boots');
+  }
+  
+  if (hasSnow) {
+    packingList.push('Snow boots with good traction', 'Waterproof gloves', 'Scarf', 'Hand warmers');
+  }
+
+  // General items
+  packingList.push('Comfortable walking shoes', 'Extra socks and underwear', 'Toiletries', 'Phone charger', 'Reusable water bottle');
+
+  return {
+    summary,
+    packingList,
+    dailyForecast: weatherForecast.map(day => ({
+      date: day.date,
+      condition: getWeatherDescription(day.weathercode),
+      high: Math.round(day.temp_max),
+      low: Math.round(day.temp_min),
+      precipitation: day.precipitation,
+    }))
+  };
 }
 
 /**
@@ -218,34 +324,4 @@ function getWeatherDescription(code) {
     99: 'Thunderstorm with heavy hail',
   };
   return weatherCodes[code] || 'Unknown weather';
-}
-
-/**
- * Provide a default outfit suggestion based on temperature and weather code
- */
-function getDefaultOutfitSuggestion(temp, code) {
-  let suggestion = '';
-  
-  if (temp < 32) {
-    suggestion = 'Heavy coat, warm layers, gloves, and a hat';
-  } else if (temp < 50) {
-    suggestion = 'Jacket or sweater, long pants';
-  } else if (temp < 65) {
-    suggestion = 'Light jacket or cardigan';
-  } else if (temp < 75) {
-    suggestion = 'T-shirt and jeans or light pants';
-  } else {
-    suggestion = 'T-shirt and shorts, stay cool!';
-  }
-
-  // Add weather-specific accessories
-  if (code >= 61 && code <= 82) {
-    suggestion += ' — bring an umbrella';
-  } else if (code >= 71 && code <= 86) {
-    suggestion += ' — snow boots recommended';
-  } else if (code <= 1) {
-    suggestion += ' — bring sunglasses';
-  }
-
-  return suggestion;
 }

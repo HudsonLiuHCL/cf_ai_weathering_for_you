@@ -1,0 +1,20 @@
+# --- Worker Config ---
+name = "cf-ai-weathering-for-you"
+main = "src/worker.js"
+compatibility_date = "2024-11-01"
+
+# AI binding (Llama 3.3 etc.)
+[ai]
+binding = "AI"
+
+
+# --- Pages Config ---
+# This tells Wrangler where your frontend assets live
+pages_build_output_dir = "frontend"
+
+# --- Environments ---
+[env.dev]
+name = "cf-ai-weathering-for-you-dev"
+
+[env.production]
+name = "cf-ai-weathering-for-you"

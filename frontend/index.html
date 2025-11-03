@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weathering For You - AI Weather Assistant</title>
+    <title>Trip Weather Planner - AI Travel Assistant</title>
     <style>
         * {
             margin: 0;
@@ -23,7 +23,7 @@
 
         .container {
             width: 100%;
-            max-width: 500px;
+            max-width: 700px;
         }
 
         .card {
@@ -47,7 +47,7 @@
 
         h1 {
             color: #333;
-            font-size: 28px;
+            font-size: 32px;
             margin-bottom: 10px;
             text-align: center;
         }
@@ -71,7 +71,8 @@
             font-size: 14px;
         }
 
-        input[type="text"] {
+        input[type="text"],
+        input[type="number"] {
             width: 100%;
             padding: 14px 18px;
             border: 2px solid #e0e0e0;
@@ -81,9 +82,26 @@
             outline: none;
         }
 
-        input[type="text"]:focus {
+        input[type="text"]:focus,
+        input[type="number"]:focus {
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .days-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .days-input input {
+            flex: 1;
+        }
+
+        .days-hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 6px;
         }
 
         .button {
@@ -132,9 +150,6 @@
 
         .result {
             margin-top: 30px;
-            padding: 24px;
-            background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
-            border-radius: 12px;
             display: none;
             animation: slideIn 0.4s ease-out;
         }
@@ -154,27 +169,129 @@
             display: block;
         }
 
-        .result-section {
-            margin-bottom: 16px;
+        .location-header {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            margin-bottom: 20px;
         }
 
-        .result-section:last-child {
-            margin-bottom: 0;
+        .location-header h2 {
+            font-size: 24px;
+            margin-bottom: 5px;
         }
 
-        .result-label {
+        .location-header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .summary-section {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
             font-weight: 600;
             color: #667eea;
-            margin-bottom: 6px;
+            margin-bottom: 10px;
             font-size: 14px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
-        .result-text {
+        .summary-text {
             color: #333;
             font-size: 16px;
             line-height: 1.6;
+        }
+
+        .forecast-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .forecast-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .forecast-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .forecast-date {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .forecast-condition {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .forecast-temp {
+            font-size: 20px;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .forecast-temp-range {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .packing-section {
+            background: linear-gradient(135deg, #fff5e6 0%, #ffe8cc 100%);
+            padding: 20px;
+            border-radius: 12px;
+        }
+
+        .packing-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .packing-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #333;
+        }
+
+        .packing-list li:last-child {
+            border-bottom: none;
+        }
+
+        .packing-list li:before {
+            content: "✓";
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            flex-shrink: 0;
+            font-weight: bold;
         }
 
         .error {
@@ -211,39 +328,77 @@
             margin-top: 6px;
             font-style: italic;
         }
+
+        @media (max-width: 600px) {
+            .card {
+                padding: 25px;
+            }
+
+            h1 {
+                font-size: 26px;
+            }
+
+            .forecast-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="card">
-            <h1>☀️ Weathering For You</h1>
-            <p class="subtitle">AI-powered weather reports & outfit suggestions</p>
+            <h1>✈️ Trip Weather Planner</h1>
+            <p class="subtitle">Plan your trip with AI-powered weather forecasts & packing lists</p>
 
             <div class="input-group">
-                <label for="location">Enter your location</label>
+                <label for="location">Where are you traveling?</label>
                 <input 
                     type="text" 
                     id="location" 
-                    placeholder="e.g., San Francisco, CA or 94102"
+                    placeholder="e.g., Miami, FL or 90210"
                     autocomplete="off"
                 >
-                <p class="example-text">Try: "Pittsburgh, PA" or "10001"</p>
+                <p class="example-text">Enter city, state, or ZIP code</p>
+            </div>
+
+            <div class="input-group">
+                <label for="days">How many days? (1-10)</label>
+                <div class="days-input">
+                    <input 
+                        type="number" 
+                        id="days" 
+                        min="1" 
+                        max="10" 
+                        value="3"
+                        placeholder="3"
+                    >
+                </div>
+                <p class="days-hint">Maximum 10 days forecast</p>
             </div>
 
             <button class="button" id="submitBtn">
-                Get My Weather Report
+                Plan My Trip
             </button>
 
             <div class="error" id="error"></div>
 
             <div class="result" id="result">
-                <div class="result-section">
-                    <div class="result-label">Weather Summary</div>
-                    <div class="result-text" id="summary"></div>
+                <div class="location-header">
+                    <h2 id="locationName"></h2>
+                    <p id="tripDuration"></p>
                 </div>
-                <div class="result-section">
-                    <div class="result-label">Outfit Recommendation</div>
-                    <div class="result-text" id="outfit"></div>
+
+                <div class="summary-section">
+                    <div class="section-title">Trip Weather Summary</div>
+                    <div class="summary-text" id="summary"></div>
+                </div>
+
+                <div class="section-title">Daily Forecast</div>
+                <div class="forecast-grid" id="forecastGrid"></div>
+
+                <div class="packing-section">
+                    <div class="section-title">What to Pack</div>
+                    <ul class="packing-list" id="packingList"></ul>
                 </div>
             </div>
         </div>
@@ -255,20 +410,32 @@
 
     <script>
         const locationInput = document.getElementById('location');
+        const daysInput = document.getElementById('days');
         const submitBtn = document.getElementById('submitBtn');
         const resultDiv = document.getElementById('result');
         const errorDiv = document.getElementById('error');
+        
+        // Result elements
+        const locationNameEl = document.getElementById('locationName');
+        const tripDurationEl = document.getElementById('tripDuration');
         const summaryEl = document.getElementById('summary');
-        const outfitEl = document.getElementById('outfit');
+        const forecastGridEl = document.getElementById('forecastGrid');
+        const packingListEl = document.getElementById('packingList');
 
-        // Replace this with your actual Worker URL after deployment
-        const WORKER_URL = '/weather';
+        // Replace with your actual Worker URL after deployment
+        const WORKER_URL = 'https://cf-ai-weathering-for-you.haozeliu.workers.dev//trip-weather';
 
-        async function getWeatherReport() {
+        async function planTrip() {
             const location = locationInput.value.trim();
+            const days = parseInt(daysInput.value) || 3;
 
             if (!location) {
-                showError('Please enter a location');
+                showError('Please enter a destination');
+                return;
+            }
+
+            if (days < 1 || days > 10) {
+                showError('Please enter a number between 1 and 10 days');
                 return;
             }
 
@@ -278,7 +445,7 @@
 
             // Show loading state
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner"></span>Loading...';
+            submitBtn.innerHTML = '<span class="spinner"></span>Planning your trip...';
 
             try {
                 const response = await fetch(WORKER_URL, {
@@ -286,27 +453,66 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ location }),
+                    body: JSON.stringify({ location, days }),
                 });
 
                 const data = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(data.error || 'Failed to fetch weather');
+                    throw new Error(data.error || 'Failed to fetch trip weather');
                 }
 
                 // Display results
-                summaryEl.textContent = data.summary;
-                outfitEl.textContent = data.outfit;
+                displayTripPlan(data);
                 resultDiv.classList.add('show');
+
+                // Smooth scroll to results
+                setTimeout(() => {
+                    resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 100);
 
             } catch (error) {
                 showError(error.message);
             } finally {
                 // Reset button
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = 'Get My Weather Report';
+                submitBtn.innerHTML = 'Plan My Trip';
             }
+        }
+
+        function displayTripPlan(data) {
+            // Location header
+            locationNameEl.textContent = data.location;
+            tripDurationEl.textContent = `${data.days}-day trip`;
+
+            // Summary
+            summaryEl.textContent = data.summary;
+
+            // Daily forecast
+            forecastGridEl.innerHTML = '';
+            data.dailyForecast.forEach(day => {
+                const card = document.createElement('div');
+                card.className = 'forecast-card';
+                
+                const date = new Date(day.date);
+                const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                
+                card.innerHTML = `
+                    <div class="forecast-date">${dateStr}</div>
+                    <div class="forecast-condition">${day.condition}</div>
+                    <div class="forecast-temp">${day.high}°</div>
+                    <div class="forecast-temp-range">Low: ${day.low}°F</div>
+                `;
+                forecastGridEl.appendChild(card);
+            });
+
+            // Packing list
+            packingListEl.innerHTML = '';
+            data.packingList.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = item;
+                packingListEl.appendChild(li);
+            });
         }
 
         function showError(message) {
@@ -318,17 +524,37 @@
         }
 
         // Event listeners
-        submitBtn.addEventListener('click', getWeatherReport);
+        submitBtn.addEventListener('click', planTrip);
 
         locationInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                getWeatherReport();
+                planTrip();
+            }
+        });
+
+        daysInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                planTrip();
             }
         });
 
         // Clear error when user starts typing
         locationInput.addEventListener('input', () => {
             errorDiv.classList.remove('show');
+        });
+
+        daysInput.addEventListener('input', () => {
+            errorDiv.classList.remove('show');
+        });
+
+        // Validate days input
+        daysInput.addEventListener('blur', () => {
+            const val = parseInt(daysInput.value);
+            if (isNaN(val) || val < 1) {
+                daysInput.value = 1;
+            } else if (val > 10) {
+                daysInput.value = 10;
+            }
         });
     </script>
 </body>
